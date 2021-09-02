@@ -27,10 +27,10 @@ class Driver:
             options.add_argument("--headless")
 
         options.add_argument("--user-agent=" + user_agent_random)
-        # self.options.add_argument("log-level=3")
+        options.add_argument("log-level=3")
         options.add_argument("--ignore-certificate-errors")
         options.add_argument("--ignore-ssl-errors")
-        # options.add_argument("--incognito") # シークレットモードの設定を付与
+        options.add_argument("--incognito")  # シークレットモードの設定を付与
         options.add_argument("--disable-extensions")  # 全ての拡張機能無効
         options.add_argument("disable-infobars")  # AmazonLinux用
         # options.add_argument("--start-maximized") # 画面最大化

@@ -142,11 +142,6 @@ class Scraping:
         for i in range(len(sort_list)):
             name = sort_list[i]
             self.google_sort_ads.append(self.google_ads[name])
-
-        # for el in ads:
-        #     self.google_ads.append(el.find_element_by_css_selector("div > span").text
-        #     self.google_ads.append(el.text)
-        # self.google_datas = dict(zip(key, val))
         self.fetch_img(driver, "google")
 
     def fetch_yahoo_data(self, driver):

@@ -3,7 +3,7 @@ import requests
 from common.util import fetch_absolute_path, fetch_env
 
 APIKEY = fetch_env("CHATWORK_APIKEY")
-ROOMID = fetch_env("ROOM_ID")  # チャットルームURLの末尾
+ROOMID = fetch_env("CHATWORK_ROOM_ID")  # チャットルームURLの末尾
 URL = "https://api.chatwork.com/v2"
 
 

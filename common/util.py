@@ -1,4 +1,4 @@
-# import os
+import os
 import random
 from datetime import datetime
 
@@ -10,7 +10,6 @@ def hyphen_now():
 
 
 def fetch_user_agent() -> str:
-    load_dotenv()
     user_agent = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         + "(KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36",
@@ -25,5 +24,13 @@ def fetch_user_agent() -> str:
 
 
 def filename_creation(filename: str) -> str:
-    # os.path.join(os.getcwd(), "csv")
     return "{filename}_{datetime}".format(filename=filename, datetime=hyphen_now())
+
+
+def fetch_env(env_key: str) -> str:
+    load_dotenv()
+    return os.getenv(env_key)
+
+
+def fetch_absolute_path(folder_name: str) -> str:
+    return os.path.join(os.getcwd(), folder_name)

@@ -1,19 +1,15 @@
-import os
-
 import gspread
 import pandas as pd
-from dotenv import load_dotenv
 from gspread.models import Spreadsheet, Worksheet
 from oauth2client.service_account import ServiceAccountCredentials
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
-# from pydrive.files import GoogleDriveFile
+from common.util import fetch_absolute_path, fetch_env
 
-JASON_FILE_NAME = "elevated-surge-324504-609b5656cdc2.json"
-JSON_PATH = os.path.join(os.getcwd(), JASON_FILE_NAME)
-load_dotenv()
-SPREAD_SHEET_KEY = os.getenv("SPREAD_SHEET_KEY")
+JASON_FILE_NAME = fetch_env("JASON_FILE_NAME")
+JSON_PATH = fetch_absolute_path(JASON_FILE_NAME)
+SPREAD_SHEET_KEY = fetch_env("SPREAD_SHEET_KEY")
 
 
 class Gspread:

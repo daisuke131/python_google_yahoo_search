@@ -1,14 +1,12 @@
 import os
-
-# import re
 from pathlib import Path
 from time import sleep
 
 from common.driver import Driver
 from common.ggl_spreadsheet import Gspread
-from common.util import hyphen_now
+from common.util import fetch_absolute_path, hyphen_now
 
-SS_FOLDER_PATH = os.path.join(os.getcwd(), "screenshot")
+SS_FOLDER_PATH = fetch_absolute_path("screenshot")
 dir = Path(SS_FOLDER_PATH)
 dir.mkdir(parents=True, exist_ok=True)
 
@@ -19,8 +17,9 @@ class Scraping:
         self.search_query: str = self.fetch_query(search_word)
         self.google_url: str = self.fetch_google_url()
         self.yahoo_url: str = self.fetch_yahoo_url()
-        self.google_datas: list = []
-        self.yahoo_datas: list = []
+        self.google_store_ads: list = []
+        self.google_ads: list = []
+        self.yahoo_ads: list = []
 
     def fetch_query(self, search_word: str) -> str:
         search_words: list = search_word.split()
@@ -46,10 +45,21 @@ class Scraping:
     def fetch_google_data(self, driver):
         driver.get(self.google_url)
         sleep(2)
-        ads = driver.els_selector(".qGXjvb")
+        driver.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        # ads = driver.els_selector(".qGXjvb")
+        # shop_ads = driver.els_selector(".mnr-c.pla-unit")
+        # for ad in shop_ads:
+        #     img_el = ad.find_element_by_css_selector("img")
+        #     # img.find_element_by_css_selector(".pymv4e").text 名前
+        #     # img.find_element_by_css_selector(".e10twf.T4OwTb").text　金額
+        #     # img.find_element_by_css_selector(".LbUacb").text 店
+        #     # if img.find_elements_by_css_selector(".cYBBsb") 送料無料
+        #     self.google_store_ads.append(img_el.get_attribute("src"))
+
+        ads = driver.els_selector(".cUezCb.luh4tb.O9g5cc.uUPGi")
         for el in ads:
             # el.find_element_by_css_selector("div > span").text
-            self.google_datas.append(el.text)
+            self.google_ads.append(el.text)
         # self.google_datas = dict(zip(key, val))
         self.fetch_img(driver, "google")
 
@@ -59,7 +69,7 @@ class Scraping:
         ads = driver.els_selector(".sw-Card.Ad.js-Ad")
         for el in ads:
             # el.find_element_by_css_selector("h3").text
-            self.yahoo_datas.append(el.text)
+            self.yahoo_ads.append(el.text)
         # self.yahoo_datas = dict(zip(key, val))
         self.fetch_img(driver, "yahoo")
 
@@ -74,15 +84,16 @@ class Scraping:
     def write_spread_sheet(self):
         self.g_drive.create_spreadsheet("data")
         self.g_drive.append_row(["google検索"])
-        for val in self.google_datas:
+        for val in self.google_ads:
             self.g_drive.append_row([val])
         self.g_drive.append_row(["yahoo検索"])
-        for val in self.yahoo_datas:
+        for val in self.yahoo_ads:
             self.g_drive.append_row([val])
 
 
 def scraping():
-    my_scraping = Scraping("amazon フィギュア棚")
+    my_scraping = Scraping("ダイソン　セール")
+    # my_scraping = Scraping("家電量販店　東京")
     # スクレイピング+グーグルドライブに保存
     my_scraping.scraping()
     my_scraping.write_spread_sheet()

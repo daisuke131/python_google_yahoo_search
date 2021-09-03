@@ -40,14 +40,6 @@ class Scraping:
         self.url: str = "https://search.yahoo.co.jp/search?p=" + self.search_query
         return self.url
 
-    # def scraping(self) -> None:
-    #     driver = Driver()
-    #     # self.g_drive.create_folder(self.search_query + "_" + hyphen_now())
-    #     self.g_drive.create_folder(self.search_query.replace("+", "_"))
-    #     self.fetch_google_data(driver)
-    #     self.fetch_yahoo_data(driver)
-    #     driver.quit()
-
     def fetch_google_ads_data(self):
         self.driver.get(self.google_url)
         sleep(3)
@@ -55,7 +47,7 @@ class Scraping:
         self.save_img_to_local("google")
         # ショップ広告
         shop_ads = self.driver.els_selector(".mnr-c.pla-unit")
-        for ad in shop_ads:
+        for i, ad in enumerate(shop_ads):
             shop_ads_list = []
             # 日時
             shop_ads_list.append(self.nowdatetime)
@@ -74,6 +66,10 @@ class Scraping:
             except Exception:
                 shop_ads_list.append("")
             self.google_store_ads.append(shop_ads_list)
+            # URL
+            shop_ads_list.append(
+                ad.find_element_by_css_selector(f"#vplaurlg{i}").get_attribute("href")
+            )
 
         # 普通の広告
         ads = self.driver.els_selector(".cUezCb.luh4tb.O9g5cc.uUPGi")
@@ -225,22 +221,22 @@ class Scraping:
             self.g_drive.add_worksheet("yahoo広告")
         # google広告書き込み
         self.g_drive.change_sheet(0)
-        for val in self.google_sort_ads:
-            self.g_drive.append_row([val])
+        # for val in self.google_sort_ads:
+        self.g_drive.append_row(self.google_sort_ads)
         """
         googleショッピング広告書き込み
         2シート目へ移動
         """
         self.g_drive.change_sheet(1)
         for val in self.google_store_ads:
-            self.g_drive.append_row([val])
+            self.g_drive.append_row(val)
         """
         yahoo広告書き込み
         3シート目へ移動
         """
         self.g_drive.change_sheet(2)
-        for val in self.yahoo_sort_ads:
-            self.g_drive.append_row([val])
+        # for val in self.yahoo_sort_ads:
+        self.g_drive.append_row(self.yahoo_sort_ads)
 
 
 def scraping():

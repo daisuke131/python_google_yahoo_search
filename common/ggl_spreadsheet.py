@@ -38,30 +38,30 @@ class Gspread:
         self.drive = GoogleDrive(gauth)
 
     def to_folder(self, folder_name: str) -> None:
-        # 指定のフォルダに入る（フォルダID作成）
-
+        is_create_folder: bool = True
         try:
-            # files = self.drive.ListFile(
-            #     {"q": f'"{SHARE_FOLDER_ID}" in parents and trashed=false'}
-            # ).GetList()[0]
-            # for file in files:
-            #     if folder_name == file["title"]:
-            self.folder_id = self.drive.ListFile(
-                {"q": f'title = "{folder_name}"'}
-            ).GetList()[0]["id"]
-        except Exception:
-            # なければフォルダを作る
-            f_folder = self.drive.CreateFile(
-                {
-                    "title": folder_name,
-                    "parents": [{"id": SHARE_FOLDER_ID}],
-                    "mimeType": "application/vnd.google-apps.folder",
-                }
-            )
-            f_folder.Upload()
-            self.folder_id = self.drive.ListFile(
-                {"q": f'title = "{folder_name}"'}
-            ).GetList()[0]["id"]
+            files = self.drive.ListFile(
+                {"q": f'"{self.folder_id}" in parents and trashed=false'}
+            ).GetList()
+            for file in files:
+                if folder_name == file["title"]:
+                    is_create_folder = False
+                    # フォルダID指定
+                    self.folder_id = file["id"]
+                    break
+            if is_create_folder:
+                f_folder = self.drive.CreateFile(
+                    {
+                        "title": folder_name,
+                        "parents": [{"id": self.folder_id}],
+                        "mimeType": "application/vnd.google-apps.folder",
+                    }
+                )
+                f_folder.Upload()
+                # フォルダID指定
+                self.folder_id = f_folder["id"]
+        except Exception as e:
+            print(e)
 
     def to_more_folder(self, folder_name: str) -> None:
         """
@@ -81,23 +81,42 @@ class Gspread:
             {"q": f'title = "{folder_name}"'}
         ).GetList()[0]["id"]
 
+    def delete_folder(self, folder_name: str):
+        folder_id = self.drive.ListFile({"q": f'title = "{folder_name}"'}).GetList()[0][
+            "id"
+        ]
+        f_file = self.drive.CreateFile({"id": folder_id})
+        f_file.Delete()
+
     def to_spreadsheet(self, file_name: str) -> None:
         # 名前でbookを指定してなければ作る
         gc = gspread.authorize(self.credentials)
+        is_create_workbook = True
         try:
-            self.workbook = gc.open(file_name)
-        except Exception:
-            f = self.drive.CreateFile(
-                {
-                    "title": file_name,
-                    "mimeType": "application/vnd.google-apps.spreadsheet",
-                    "parents": [{"id": self.folder_id}],
-                }
-            )
-            f.Upload()
-            self.workbook = gc.open_by_key(["id"])
-        # ワークシート１シート目指定
-        self.worksheet = self.workbook.get_worksheet(0)
+            files = self.drive.ListFile(
+                {"q": f'"{self.folder_id}" in parents and trashed=false'}
+            ).GetList()
+            for file in files:
+                if file_name == file["title"]:
+                    is_create_workbook = False
+                    # ワークブック指定
+                    self.workbook = gc.open_by_key(file["id"])
+                    break
+            if is_create_workbook:
+                file = self.drive.CreateFile(
+                    {
+                        "title": file_name,
+                        "mimeType": "application/vnd.google-apps.spreadsheet",
+                        "parents": [{"id": self.folder_id}],
+                    }
+                )
+                file.Upload()
+                # ワークブック指定
+                self.workbook = gc.open_by_key(file["id"])
+            # ワークシート１シート目指定
+            self.worksheet = self.workbook.get_worksheet(0)
+        except Exception as e:
+            print(e)
 
     def add_worksheet(self, sheet_name: str):
         self.worksheet = self.workbook.add_worksheet(

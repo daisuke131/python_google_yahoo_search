@@ -9,8 +9,6 @@ from common.ggl_spreadsheet import Gspread
 from common.util import fetch_absolute_path, hyphen_now, time_now
 
 SS_FOLDER_PATH = fetch_absolute_path("screenshot")
-dir = Path(SS_FOLDER_PATH)
-dir.mkdir(parents=True, exist_ok=True)
 GOOGLE_SORT_LIST = [
     "日付",
     "広告タイトル1",
@@ -201,11 +199,14 @@ class Scraping:
                 self.yahoo_sort_ads.append(self.yahoo_ads[name])
 
     def save_img_to_local(self, search_kind: str):
+        # screenshotフォルダがない場合は作る
+        dir = Path(SS_FOLDER_PATH)
+        dir.mkdir(parents=True, exist_ok=True)
         # スクショして一時的にローカルフォルダに保存
         self.driver.save_screenshot(SS_FOLDER_PATH, f"{self.nowdate}_{search_kind}.jpg")
 
     def save_img_to_googledrive(self):
-        # スクショして一時的にローカルフォルダに保存
+        # googleドライブに保存
         self.g_drive.save_file(
             self.google_foler_id, SS_FOLDER_PATH, f"{self.nowdate}_google.jpg"
         )
@@ -240,8 +241,17 @@ class Scraping:
             self.g_drive.append_row(YAHOO_SORT_LIST)
         # google広告書き込み
         self.g_drive.change_sheet(0)
-        # for val in self.google_sort_ads:
-        self.g_drive.append_row(self.google_sort_ads)
+        for i, s in enumerate(self.google_sort_ads):
+            # １個目は日時なのでスルー
+            if i == 0:
+                continue
+            """
+            抽出した項目が空白でない時点で書き込み
+            逆に抽出した項目が全部空白だったら書き込まない
+            """
+            if s != "":
+                self.g_drive.append_row(self.google_sort_ads)
+                break
         """
         googleショッピング広告書き込み
         2シート目へ移動
@@ -254,8 +264,12 @@ class Scraping:
         3シート目へ移動
         """
         self.g_drive.change_sheet(2)
-        # for val in self.yahoo_sort_ads:
-        self.g_drive.append_row(self.yahoo_sort_ads)
+        for i, s in enumerate(self.yahoo_sort_ads):
+            if i == 0:
+                continue
+            if s != "":
+                self.g_drive.append_row(self.yahoo_sort_ads)
+                break
         """
         URL取得
         """
@@ -291,14 +305,15 @@ class Scraping:
             img_folder=SS_FOLDER_PATH,
             imag_name=f"{self.nowdate}_google.jpg",
         )
+        sleep(1)
         send_img(
             message="", img_folder=SS_FOLDER_PATH, imag_name=f"{self.nowdate}_yahoo.jpg"
         )
 
 
-def scraping():
+def scraping(search_word: str):
     # スクレイピング用のクラス設定
-    my_scraping = Scraping("ダイソン　セール")
+    my_scraping = Scraping(search_word)
     # my_scraping = Scraping("冷蔵庫　セール")
     # my_scraping = Scraping("家電量販店　東京")
     # googleのデータ抽出
@@ -315,7 +330,3 @@ def scraping():
     my_scraping.send_chatwork()
     # ローカルのスクショフォルダごと削除
     shutil.rmtree(SS_FOLDER_PATH)
-
-
-if __name__ == "__main__":
-    scraping()

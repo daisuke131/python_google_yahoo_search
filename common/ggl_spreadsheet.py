@@ -11,8 +11,8 @@ from common.util import fetch_absolute_path, fetch_env
 
 JASON_FILE_NAME = fetch_env("JASON_FILE_NAME")
 JSON_PATH = fetch_absolute_path(JASON_FILE_NAME)
-SPREAD_SHEET_KEY = fetch_env("SPREAD_SHEET_KEY")
 SHARE_FOLDER_ID = fetch_env("FOLDER_ID")  # 親フォルダのfileid
+SPREAD_SHEET_ID = fetch_env("SHEET_ID")  # 検索ワードのスプレッドシートID
 
 
 class Gspread:
@@ -24,7 +24,7 @@ class Gspread:
         # 他のフォルダのfile_idはメインの方で持たす
         # なので新たにフォルダを作ったときフォルダのファイルIDを返す
         self.parent_folder_id: str = SHARE_FOLDER_ID
-        self.df = []
+        self.search_sheet_id: str = SPREAD_SHEET_ID
         self.set_gspread()
 
     def set_gspread(self):
@@ -149,21 +149,23 @@ class Gspread:
     def append_row(self, val: list) -> None:
         self.worksheet.append_row(val)
 
-    def connect_gspread(self):
+    def open_sheet_by_(self, file_id: str):
         try:
             gc = gspread.authorize(self.credentials)
-            workbook = gc.open_by_key(SPREAD_SHEET_KEY)
-            return workbook
+            self.workbook = gc.open_by_key(file_id)
+            # ワークシート１シート目指定
+            self.worksheet = self.workbook.get_worksheet(0)
         except Exception:
             print("Googleスプレッドシートを読み込めませんでした。")
-            return None
 
     def set_df(self):
-        self.df = pd.DataFrame(self.worksheet.get_all_values())
-        self.df.columns = list(self.df.loc[0, :])
-        self.df.drop(0, inplace=True)
-        self.df.reset_index(inplace=True)
-        self.df.drop("index", axis=1, inplace=True)
+        df = pd.DataFrame(self.worksheet.get_all_values())
+        # ヘッダーが一行目データになっているのでちゃんとヘッダーにする
+        df.columns = list(df.loc[0, :])
+        df.drop(0, inplace=True)
+        df.reset_index(inplace=True)
+        df.drop("index", axis=1, inplace=True)
+        return df
 
     def fetch_wb_url(self):
-        return self.workbook.url
+        return self.workbook.url + "/edit?usp=sharing"

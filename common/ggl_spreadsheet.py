@@ -84,10 +84,6 @@ class Gspread:
             }
         )
         f_folder.Upload()
-        # 新しく作ったフォルダに移動
-        # self.folder_id = self.drive.ListFile(
-        #     {"q": f'title = "{folder_name}"'}
-        # ).GetList()[0]["id"]
         return f_folder["id"]
 
     def delete_folder(self, folder_name: str):

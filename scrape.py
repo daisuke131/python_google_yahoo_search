@@ -222,11 +222,6 @@ class Scraping:
             self.search_foler_id, self.search_query.replace("+", "_")
         )
         """
-        スプレッドシートを作成した場合、
-        ヘッダーを作成
-        """
-
-        """
         新規でスプレッドシートを作成した場合、
         ワークシートを作る。
         """
@@ -310,6 +305,7 @@ def scraping():
     my_scraping.fetch_google_ads_data()
     # yahooのデータ抽出
     my_scraping.fetch_yahoo_data()
+    # 必要ならフォルダ作成
     my_scraping.make_folder()
     # スプレッドシートに書き込み
     my_scraping.write_spread_sheet()

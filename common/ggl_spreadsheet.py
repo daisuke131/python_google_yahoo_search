@@ -37,7 +37,7 @@ class Gspread:
         gauth.credentials = self.credentials
         self.drive = GoogleDrive(gauth)
 
-    def to_folder(self, folder_name: str) -> None:
+    def to_folder(self, folder_name: str) -> bool:
         is_create_folder: bool = True
         try:
             files = self.drive.ListFile(
@@ -60,6 +60,8 @@ class Gspread:
                 f_folder.Upload()
                 # フォルダID指定
                 self.folder_id = f_folder["id"]
+            # 新しくフォルダを作成したかを返す
+            return is_create_folder
         except Exception as e:
             print(e)
 
@@ -88,7 +90,7 @@ class Gspread:
         f_file = self.drive.CreateFile({"id": folder_id})
         f_file.Delete()
 
-    def to_spreadsheet(self, file_name: str) -> None:
+    def to_spreadsheet(self, file_name: str) -> bool:
         # 名前でbookを指定してなければ作る
         gc = gspread.authorize(self.credentials)
         is_create_workbook = True
@@ -115,6 +117,8 @@ class Gspread:
                 self.workbook = gc.open_by_key(file["id"])
             # ワークシート１シート目指定
             self.worksheet = self.workbook.get_worksheet(0)
+            # 新しくworkbookを作成したかを返す
+            return is_create_workbook
         except Exception as e:
             print(e)
 
@@ -151,17 +155,12 @@ class Gspread:
             print("Googleスプレッドシートを読み込めませんでした。")
             return None
 
-    def read_sheet(self, sheet_num: int):
-        # 0番目が一枚目のシート
-        self.worksheet = self.workbook.get_worksheet(sheet_num)
-        return self.worksheet
-
-    # def read_sheet(self, workbook, sheet_name: str):
-    #     self.worksheet = self.workbook.worksheet(sheet_name)
-
     def set_df(self):
         self.df = pd.DataFrame(self.worksheet.get_all_values())
         self.df.columns = list(self.df.loc[0, :])
         self.df.drop(0, inplace=True)
         self.df.reset_index(inplace=True)
         self.df.drop("index", axis=1, inplace=True)
+
+    def fetch_wb_url(self):
+        return self.workbook.url

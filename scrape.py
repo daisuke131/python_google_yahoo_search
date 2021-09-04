@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from time import sleep
 
+from common.chat_work import send_img
 from common.driver import Driver
 from common.ggl_spreadsheet import Gspread
 from common.util import fetch_absolute_path, hyphen_now, time_now
@@ -9,6 +10,33 @@ from common.util import fetch_absolute_path, hyphen_now, time_now
 SS_FOLDER_PATH = fetch_absolute_path("screenshot")
 dir = Path(SS_FOLDER_PATH)
 dir.mkdir(parents=True, exist_ok=True)
+GOOGLE_SORT_LIST = [
+    "日付",
+    "広告タイトル1",
+    "広告タイトル2",
+    "広告タイトル3",
+    "説明文1",
+    "説明文2",
+    "サイトリンク1タイトル",
+    "サイトリンク1説明文",
+    "サイトリンク2タイトル",
+    "サイトリンク2説明文",
+    "サイトリンク3タイトル",
+    "サイトリンク3説明文",
+    "サイトリンク4タイトル",
+    "サイトリンク4説明文",
+    "ランディングページ",
+]
+GOOGLE_SHOPPING_SORT_LIST = ["日付", "商品名", "価格", "店舗名", "送料", "ランディングページ"]
+YAHOO_SORT_LIST = [
+    "日付",
+    "広告タイトル1",
+    "広告タイトル2",
+    "広告タイトル3",
+    "説明文1",
+    "説明文2",
+    "ランディングページ",
+]
 
 
 class Scraping:
@@ -23,6 +51,7 @@ class Scraping:
         self.google_sort_ads: list = []
         self.yahoo_ads: dict = {}
         self.yahoo_sort_ads: list = []
+        self.spreadsheet_url: str
         self.nowdate = hyphen_now()  # 2021-09-10-00-00-00
         self.nowdatetime = time_now()  # 2021/09/10 00:00:00
 
@@ -127,25 +156,8 @@ class Scraping:
                         except Exception:
                             self.google_ads["サイトリンク" + str(index + 1) + "説明文"] = ""
             # 表示順番入れ替え
-            sort_list = [
-                "日付",
-                "広告タイトル1",
-                "広告タイトル2",
-                "広告タイトル3",
-                "説明文1",
-                "説明文2",
-                "サイトリンク1タイトル",
-                "サイトリンク1説明文",
-                "サイトリンク2タイトル",
-                "サイトリンク2説明文",
-                "サイトリンク3タイトル",
-                "サイトリンク3説明文",
-                "サイトリンク4タイトル",
-                "サイトリンク4説明文",
-                "ランディングページ",
-            ]
-            for i in range(len(sort_list)):
-                name = sort_list[i]
+            for i in range(len(GOOGLE_SORT_LIST)):
+                name = GOOGLE_SORT_LIST[i]
                 self.google_sort_ads.append(self.google_ads[name])
 
     def fetch_yahoo_data(self):
@@ -179,17 +191,8 @@ class Scraping:
                     except Exception:
                         self.yahoo_ads["説明文" + str(i + 1)] = ""
             # 表示順番入れ替え
-            sort_list = [
-                "日付",
-                "広告タイトル1",
-                "広告タイトル2",
-                "広告タイトル3",
-                "説明文1",
-                "説明文2",
-                "ランディングページ",
-            ]
-            for i in range(len(sort_list)):
-                name = sort_list[i]
+            for i in range(len(YAHOO_SORT_LIST)):
+                name = YAHOO_SORT_LIST[i]
                 self.yahoo_sort_ads.append(self.yahoo_ads[name])
 
     def save_img_to_local(self, search_kind: str):
@@ -211,14 +214,22 @@ class Scraping:
         """
         self.g_drive.to_spreadsheet(self.search_query.replace("+", "_"))
         """
+        スプレッドシートを作成した場合、
+        ヘッダーを作成
+        """
+
+        """
         新規でスプレッドシートを作成した場合、
         ワークシートを作る。
         """
         if len(self.g_drive.workbook.worksheets()) < 3:
+            self.g_drive.append_row(GOOGLE_SORT_LIST)
             # 1つ目のシートはすでにあるのでリネーム
             self.g_drive.rename_sheet("google広告")
             self.g_drive.add_worksheet("googleショッピング広告")
+            self.g_drive.append_row(GOOGLE_SHOPPING_SORT_LIST)
             self.g_drive.add_worksheet("yahoo広告")
+            self.g_drive.append_row(YAHOO_SORT_LIST)
         # google広告書き込み
         self.g_drive.change_sheet(0)
         # for val in self.google_sort_ads:
@@ -237,6 +248,18 @@ class Scraping:
         self.g_drive.change_sheet(2)
         # for val in self.yahoo_sort_ads:
         self.g_drive.append_row(self.yahoo_sort_ads)
+        """
+        URL取得
+        """
+        self.spreadsheet_url = self.g_drive.fetch_wb_url()
+
+    def send_chatwork(self):
+        send_img(
+            message=self.spreadsheet_url,
+            img_folder=SS_FOLDER_PATH,
+            imag_name="google.png",
+        )
+        send_img(message="", img_folder=SS_FOLDER_PATH, imag_name="yahoo.png")
 
 
 def scraping():
@@ -265,6 +288,7 @@ def scraping():
     # googleドライブに画像保存
     my_scraping.save_img_to_googledrive()
     # チャットワークに送信
+    my_scraping.send_chatwork()
     # ＵＲＬと画像
 
     # ローカルのスクショ削除

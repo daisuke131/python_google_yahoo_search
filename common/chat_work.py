@@ -24,7 +24,7 @@ def send_img(message: str, img_folder: str, imag_name: str) -> bool:
         img_bin = open(fetch_absolute_path(img_folder) + "/" + imag_name, "rb")
         headers = {"X-ChatWorkToken": APIKEY}
         files = {
-            "file": (imag_name, img_bin, "image/png"),
+            "file": (imag_name, img_bin, "image/jpg"),
             "message": message,
         }
         requests.post(url, headers=headers, files=files)

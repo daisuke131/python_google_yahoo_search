@@ -12,7 +12,7 @@ from common.util import fetch_absolute_path, fetch_env
 JASON_FILE_NAME = fetch_env("JASON_FILE_NAME")
 JSON_PATH = fetch_absolute_path(JASON_FILE_NAME)
 SPREAD_SHEET_KEY = fetch_env("SPREAD_SHEET_KEY")
-SHARE_FOLDER_ID = fetch_env("FOLDER_ID")
+SHARE_FOLDER_ID = fetch_env("FOLDER_ID")  # 親フォルダのfileid
 
 
 class Gspread:
@@ -21,7 +21,9 @@ class Gspread:
         self.worksheet: Worksheet
         self.drive: GoogleDrive
         self.credentials: Any
-        self.folder_id: str = SHARE_FOLDER_ID
+        # 他のフォルダのfile_idはメインの方で持たす
+        # なので新たにフォルダを作ったときフォルダのファイルIDを返す
+        self.parent_folder_id: str = SHARE_FOLDER_ID
         self.df = []
         self.set_gspread()
 
@@ -37,51 +39,56 @@ class Gspread:
         gauth.credentials = self.credentials
         self.drive = GoogleDrive(gauth)
 
-    def to_folder(self, folder_name: str) -> bool:
+    def to_folder_by_folder_name(
+        self, folder_id: str, folder_name: str
+    ) -> list[str, bool]:
+        # folderに移動するというよりfile_idを取得している
         is_create_folder: bool = True
+        new_folder_id: str
         try:
             files = self.drive.ListFile(
-                {"q": f'"{self.folder_id}" in parents and trashed=false'}
+                {"q": f'"{folder_id}" in parents and trashed=false'}
             ).GetList()
             for file in files:
                 if folder_name == file["title"]:
                     is_create_folder = False
                     # フォルダID指定
-                    self.folder_id = file["id"]
+                    new_folder_id = file["id"]
                     break
             if is_create_folder:
                 f_folder = self.drive.CreateFile(
                     {
                         "title": folder_name,
-                        "parents": [{"id": self.folder_id}],
+                        "parents": [{"id": folder_id}],
                         "mimeType": "application/vnd.google-apps.folder",
                     }
                 )
                 f_folder.Upload()
-                # フォルダID指定
-                self.folder_id = f_folder["id"]
+                new_folder_id = f_folder["id"]
             # 新しくフォルダを作成したかを返す
-            return is_create_folder
+            return new_folder_id, is_create_folder
         except Exception as e:
             print(e)
 
-    def to_more_folder(self, folder_name: str) -> None:
+    def to_more_folder(self, folder_id: str, folder_name: str) -> None:
         """
         作成したフォルダ(folder_id)の中にさらにフォルダを作る
         folder_idは新しく作られたフォルダIDに上書きされる
         """
-        old_folder_id = self.folder_id
+        # old_folder_id = self.folder_id
         f_folder = self.drive.CreateFile(
             {
                 "title": folder_name,
-                "parents": [{"id": old_folder_id}],
+                "parents": [{"id": folder_id}],
                 "mimeType": "application/vnd.google-apps.folder",
             }
         )
         f_folder.Upload()
-        self.folder_id = self.drive.ListFile(
-            {"q": f'title = "{folder_name}"'}
-        ).GetList()[0]["id"]
+        # 新しく作ったフォルダに移動
+        # self.folder_id = self.drive.ListFile(
+        #     {"q": f'title = "{folder_name}"'}
+        # ).GetList()[0]["id"]
+        return f_folder["id"]
 
     def delete_folder(self, folder_name: str):
         folder_id = self.drive.ListFile({"q": f'title = "{folder_name}"'}).GetList()[0][
@@ -90,13 +97,13 @@ class Gspread:
         f_file = self.drive.CreateFile({"id": folder_id})
         f_file.Delete()
 
-    def to_spreadsheet(self, file_name: str) -> bool:
+    def to_spreadsheet(self, folder_id: str, file_name: str) -> bool:
         # 名前でbookを指定してなければ作る
         gc = gspread.authorize(self.credentials)
         is_create_workbook = True
         try:
             files = self.drive.ListFile(
-                {"q": f'"{self.folder_id}" in parents and trashed=false'}
+                {"q": f'"{folder_id}" in parents and trashed=false'}
             ).GetList()
             for file in files:
                 if file_name == file["title"]:
@@ -109,7 +116,7 @@ class Gspread:
                     {
                         "title": file_name,
                         "mimeType": "application/vnd.google-apps.spreadsheet",
-                        "parents": [{"id": self.folder_id}],
+                        "parents": [{"id": folder_id}],
                     }
                 )
                 file.Upload()
@@ -134,8 +141,8 @@ class Gspread:
         # シートは0~
         self.worksheet = self.workbook.get_worksheet(sheet_num)
 
-    def save_file(self, local_img_path: str, file_name: str) -> None:
-        f = self.drive.CreateFile({"parents": [{"id": self.folder_id}]})
+    def save_file(self, folder_id: str, local_img_path: str, file_name: str) -> None:
+        f = self.drive.CreateFile({"parents": [{"id": folder_id}]})
         f.SetContentFile(local_img_path + "/" + file_name)
         f["title"] = file_name
         f.Upload()

@@ -1,4 +1,5 @@
-import os
+# import os
+import shutil
 from pathlib import Path
 from time import sleep
 
@@ -54,6 +55,10 @@ class Scraping:
         self.spreadsheet_url: str
         self.nowdate = hyphen_now()  # 2021-09-10-00-00-00
         self.nowdatetime = time_now()  # 2021/09/10 00:00:00
+        # googleドライブのフォルダID
+        self.search_foler_id: str
+        self.google_foler_id: str
+        self.yahoo_foler_id: str
 
     def fetch_query(self, search_word: str) -> str:
         search_words: list = search_word.split()
@@ -197,22 +202,25 @@ class Scraping:
 
     def save_img_to_local(self, search_kind: str):
         # スクショして一時的にローカルフォルダに保存
-        self.driver.save_screenshot(SS_FOLDER_PATH, f"{search_kind}.png")
+        self.driver.save_screenshot(SS_FOLDER_PATH, f"{self.nowdate}_{search_kind}.jpg")
 
     def save_img_to_googledrive(self):
         # スクショして一時的にローカルフォルダに保存
-        self.g_drive.save_file(SS_FOLDER_PATH, "google.png")
-        self.g_drive.save_file(SS_FOLDER_PATH, "yahoo.png")
-        # # ローカル画像ファイル削除
-        # os.remove(SS_FOLDER_PATH + "/" + "google.png")
-        # os.remove(SS_FOLDER_PATH + "/" + "yahoo.png")
+        self.g_drive.save_file(
+            self.google_foler_id, SS_FOLDER_PATH, f"{self.nowdate}_google.jpg"
+        )
+        self.g_drive.save_file(
+            self.yahoo_foler_id, SS_FOLDER_PATH, f"{self.nowdate}_yahoo.jpg"
+        )
 
     def write_spread_sheet(self):
         """
         検索ワード名のワークシートがなければ作成
         検索ワード初回のみ作成
         """
-        self.g_drive.to_spreadsheet(self.search_query.replace("+", "_"))
+        self.g_drive.to_spreadsheet(
+            self.search_foler_id, self.search_query.replace("+", "_")
+        )
         """
         スプレッドシートを作成した場合、
         ヘッダーを作成
@@ -223,12 +231,17 @@ class Scraping:
         ワークシートを作る。
         """
         if len(self.g_drive.workbook.worksheets()) < 3:
+            # google広告ヘッダー作成
             self.g_drive.append_row(GOOGLE_SORT_LIST)
             # 1つ目のシートはすでにあるのでリネーム
             self.g_drive.rename_sheet("google広告")
+            # シート作成
             self.g_drive.add_worksheet("googleショッピング広告")
+            # googleショピング広告ヘッダー作成
             self.g_drive.append_row(GOOGLE_SHOPPING_SORT_LIST)
+            # シート作成
             self.g_drive.add_worksheet("yahoo広告")
+            # yahoo広告ヘッダー作成
             self.g_drive.append_row(YAHOO_SORT_LIST)
         # google広告書き込み
         self.g_drive.change_sheet(0)
@@ -253,47 +266,59 @@ class Scraping:
         """
         self.spreadsheet_url = self.g_drive.fetch_wb_url()
 
+    def make_folder(self):
+        """
+        Googleドライブの中でフォルダを作成
+        フォルダ名は検索ワード
+        初めての検索ワードのときだけ作成される。
+        """
+        (
+            self.search_foler_id,
+            is_create_folder,
+        ) = self.g_drive.to_folder_by_folder_name(
+            self.g_drive.parent_folder_id, self.search_query.replace("+", "_")
+        )
+        if is_create_folder:
+            # 画像用フォルダを作る
+            self.g_drive.to_more_folder(self.search_foler_id, "google")
+            self.g_drive.to_more_folder(self.search_foler_id, "yahoo")
+        # googleとyahooフォルダのID取得
+        self.google_foler_id = self.g_drive.to_folder_by_folder_name(
+            self.search_foler_id, "google"
+        )[0]
+        self.yahoo_foler_id = self.g_drive.to_folder_by_folder_name(
+            self.search_foler_id, "yahoo"
+        )[0]
+
     def send_chatwork(self):
         send_img(
             message=self.spreadsheet_url,
             img_folder=SS_FOLDER_PATH,
-            imag_name="google.png",
+            imag_name=f"{self.nowdate}_google.jpg",
         )
-        send_img(message="", img_folder=SS_FOLDER_PATH, imag_name="yahoo.png")
+        send_img(
+            message="", img_folder=SS_FOLDER_PATH, imag_name=f"{self.nowdate}_yahoo.jpg"
+        )
 
 
 def scraping():
     # スクレイピング用のクラス設定
-    # my_scraping = Scraping("ダイソン　セール")
-    my_scraping = Scraping("冷蔵庫　セール")
+    my_scraping = Scraping("ダイソン　セール")
+    # my_scraping = Scraping("冷蔵庫　セール")
     # my_scraping = Scraping("家電量販店　東京")
     # googleのデータ抽出
     my_scraping.fetch_google_ads_data()
     # yahooのデータ抽出
     my_scraping.fetch_yahoo_data()
-    """
-     Googleドライブの中でフォルダを作成
-     フォルダ名は検索ワード
-     初めての検索ワードのときだけ作成される。
-    """
-    my_scraping.g_drive.to_folder(my_scraping.search_query.replace("+", "_"))
+    my_scraping.make_folder()
     # スプレッドシートに書き込み
     my_scraping.write_spread_sheet()
-    """
-     スクショ用フォルダ名は2020-04-04-04-00-00-00のように
-     ハイフン区切りの日時で命名される
-     こちらは検索都度作成される
-    """
-    my_scraping.g_drive.to_more_folder(my_scraping.nowdate)
     # googleドライブに画像保存
     my_scraping.save_img_to_googledrive()
     # チャットワークに送信
     my_scraping.send_chatwork()
-    # ＵＲＬと画像
-
-    # ローカルのスクショ削除
-    os.remove(SS_FOLDER_PATH + "/" + "google.png")
-    os.remove(SS_FOLDER_PATH + "/" + "yahoo.png")
+    # ローカルのスクショフォルダごと削除
+    shutil.rmtree(SS_FOLDER_PATH)
 
 
 if __name__ == "__main__":

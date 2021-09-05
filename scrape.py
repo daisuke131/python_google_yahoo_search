@@ -9,7 +9,7 @@ from common.ggl_spreadsheet import Gspread
 from common.util import fetch_absolute_path, hyphen_now, time_now
 
 SS_FOLDER_PATH = fetch_absolute_path("screenshot")
-GOOGLE_SORT_LIST = [
+SORT_LIST = [
     "日付",
     "広告タイトル1",
     "広告タイトル2",
@@ -27,15 +27,6 @@ GOOGLE_SORT_LIST = [
     "ランディングページ",
 ]
 GOOGLE_SHOPPING_SORT_LIST = ["日付", "商品名", "価格", "店舗名", "送料", "ランディングページ"]
-YAHOO_SORT_LIST = [
-    "日付",
-    "広告タイトル1",
-    "広告タイトル2",
-    "広告タイトル3",
-    "説明文1",
-    "説明文2",
-    "ランディングページ",
-]
 
 
 class Scraping:
@@ -159,8 +150,8 @@ class Scraping:
                         except Exception:
                             self.google_ads["サイトリンク" + str(index + 1) + "説明文"] = ""
             # 表示順番入れ替え
-            for i in range(len(GOOGLE_SORT_LIST)):
-                name = GOOGLE_SORT_LIST[i]
+            for i in range(len(SORT_LIST)):
+                name = SORT_LIST[i]
                 self.google_sort_ads.append(self.google_ads[name])
 
     def fetch_yahoo_data(self):
@@ -168,6 +159,12 @@ class Scraping:
         sleep(3)
         # スクショ保存
         self.save_img_to_local("yahoo")
+
+        # shopping_ads = self.driver.els_selector(".sw-Link.Ad__siteLinks")
+        # if len(shopping_ads) > 0:
+        #     shop_ads = len(shopping_ads[0].find_elements_by_css_selector("li"))
+        #     for i, ad in enumerate(shop_ads):
+
         # 広告情報抽出
         ads = self.driver.els_selector(".sw-Card.Ad.js-Ad")
         if len(ads) > 0:
@@ -193,9 +190,32 @@ class Scraping:
                         )
                     except Exception:
                         self.yahoo_ads["説明文" + str(i + 1)] = ""
+                if i == 0:
+                    # サイトリンクタイトル
+                    for index in range(4):
+                        try:
+                            els = ads[i].find_elements_by_css_selector(
+                                ".sw-Link.Ad__siteLinks > div > ul > li"
+                            )[index]
+                            self.yahoo_ads[
+                                "サイトリンク" + str(index + 1) + "タイトル"
+                            ] = els.find_element_by_css_selector("a").text
+                        except Exception:
+                            self.yahoo_ads["サイトリンク" + str(index + 1) + "タイトル"] = ""
+                    # サイトリンク説明文
+                    for index in range(4):
+                        try:
+                            els = ads[i].find_elements_by_css_selector(
+                                ".sw-Link.Ad__siteLinks > div > ul > li"
+                            )[index]
+                            self.yahoo_ads[
+                                "サイトリンク" + str(index + 1) + "説明文"
+                            ] = els.find_element_by_css_selector("span").text
+                        except Exception:
+                            self.yahoo_ads["サイトリンク" + str(index + 1) + "説明文"] = ""
             # 表示順番入れ替え
-            for i in range(len(YAHOO_SORT_LIST)):
-                name = YAHOO_SORT_LIST[i]
+            for i in range(len(SORT_LIST)):
+                name = SORT_LIST[i]
                 self.yahoo_sort_ads.append(self.yahoo_ads[name])
 
     def save_img_to_local(self, search_kind: str):
@@ -228,7 +248,7 @@ class Scraping:
         """
         if len(self.g_drive.workbook.worksheets()) < 3:
             # google広告ヘッダー作成
-            self.g_drive.append_row(GOOGLE_SORT_LIST)
+            self.g_drive.append_row(SORT_LIST)
             # 1つ目のシートはすでにあるのでリネーム
             self.g_drive.rename_sheet("google広告")
             # シート作成
@@ -238,7 +258,7 @@ class Scraping:
             # シート作成
             self.g_drive.add_worksheet("yahoo広告")
             # yahoo広告ヘッダー作成
-            self.g_drive.append_row(YAHOO_SORT_LIST)
+            self.g_drive.append_row(SORT_LIST)
         # google広告書き込み
         self.g_drive.change_sheet(0)
         for i, s in enumerate(self.google_sort_ads):

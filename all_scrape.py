@@ -10,13 +10,15 @@ class Scrape:
 
     def fetch_search_words(self) -> None:
         self.g_drive.open_sheet_by_(self.g_drive.search_sheet_id)
+        # シート名取得
         self.sheet_names = self.g_drive.fetch_sheet_names()
-        # その時間のシートがあるか確認
+        # シート内のワードを抽出してリストに格納
         for name in self.sheet_names:
             self.g_drive.change_sheet_by_name(name)
             df = self.g_drive.set_df()
             for i, items in df.iterrows():
                 self.search_words.append(items[0])
+        # 重複するワードを除外
         self.search_words = list(set(self.search_words))
 
     def start_scraping(self) -> None:

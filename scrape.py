@@ -328,21 +328,21 @@ class Scraping:
             # yahoo広告ヘッダー作成
             self.g_drive.append_row(COLUMN_LIST)
         # google広告書き込み
-        self.g_drive.change_sheet(0)
+        self.g_drive.change_sheet_by_num(0)
         for i in range(len(self.google_ads)):
             self.g_drive.append_row(self.google_ads.iloc[i].to_list())
         """
         googleショッピング広告書き込み
         2シート目へ移動
         """
-        self.g_drive.change_sheet(1)
+        self.g_drive.change_sheet_by_num(1)
         for val in self.google_store_ads:
             self.g_drive.append_row(val)
         """
         yahoo広告書き込み
         3シート目へ移動
         """
-        self.g_drive.change_sheet(2)
+        self.g_drive.change_sheet_by_num(2)
         for i in range(len(self.yahoo_ads)):
             self.g_drive.append_row(self.yahoo_ads.iloc[i].to_list())
         """

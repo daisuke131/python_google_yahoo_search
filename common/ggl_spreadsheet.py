@@ -133,9 +133,12 @@ class Gspread:
     def rename_sheet(self, new_sheet_name: str):
         self.worksheet.update_title(new_sheet_name)
 
-    def change_sheet(self, sheet_num: int) -> None:
+    def change_sheet_by_num(self, sheet_num: int) -> None:
         # シートは0~
         self.worksheet = self.workbook.get_worksheet(sheet_num)
+
+    def change_sheet_by_name(self, sheet_name: str) -> None:
+        self.worksheet = self.workbook.worksheet(sheet_name)
 
     def save_file(self, folder_id: str, local_img_path: str, file_name: str) -> None:
         f = self.drive.CreateFile({"parents": [{"id": folder_id}]})
@@ -157,6 +160,18 @@ class Gspread:
             self.worksheet = self.workbook.get_worksheet(0)
         except Exception:
             print("Googleスプレッドシートを読み込めませんでした。")
+
+    def fetch_sheet_count(self) -> int:
+        return len(self.workbook.worksheets())
+
+    def fetch_sheet_names(self) -> list:
+        sheet_names = []
+        for sh in self.workbook.worksheets():
+            sheet_names.append(sh.title)
+        return sheet_names
+
+    def fetch_sheet_name(self) -> str:
+        return self.worksheet.title
 
     def set_df(self):
         df = pd.DataFrame(self.worksheet.get_all_values())

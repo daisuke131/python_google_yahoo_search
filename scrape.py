@@ -1,7 +1,8 @@
-# import os
 import shutil
 from pathlib import Path
 from time import sleep
+
+import pandas as pd
 
 from common.chat_work import send_img
 from common.driver import Driver
@@ -9,24 +10,27 @@ from common.ggl_spreadsheet import Gspread
 from common.util import fetch_absolute_path, hyphen_now, time_now
 
 SS_FOLDER_PATH = fetch_absolute_path("screenshot")
-SORT_LIST = [
+COLUMN_LIST = [
     "日付",
     "広告タイトル1",
     "広告タイトル2",
     "広告タイトル3",
-    "説明文1",
-    "説明文2",
+    "説明文",
     "サイトリンク1タイトル",
+    "サイトリンク1URL",
     "サイトリンク1説明文",
     "サイトリンク2タイトル",
+    "サイトリンク2URL",
     "サイトリンク2説明文",
     "サイトリンク3タイトル",
+    "サイトリンク3URL",
     "サイトリンク3説明文",
     "サイトリンク4タイトル",
+    "サイトリンク4URL",
     "サイトリンク4説明文",
     "ランディングページ",
 ]
-GOOGLE_SHOPPING_SORT_LIST = ["日付", "商品名", "価格", "店舗名", "送料", "ランディングページ"]
+GOOGLE_SHOPPING_COLUMN_LIST = ["日付", "商品名", "価格", "店舗名", "送料", "ランディングページ"]
 
 
 class Scraping:
@@ -37,10 +41,8 @@ class Scraping:
         self.google_url: str = self.fetch_google_url()
         self.yahoo_url: str = self.fetch_yahoo_url()
         self.google_store_ads: list = []
-        self.google_ads: dict = {}
-        self.google_sort_ads: list = []
-        self.yahoo_ads: dict = {}
-        self.yahoo_sort_ads: list = []
+        self.google_ads = pd.DataFrame()
+        self.yahoo_ads = pd.DataFrame()
         self.spreadsheet_url: str
         self.nowdate = hyphen_now()  # 2021-09-10-00-00-00
         self.nowdatetime = time_now()  # 2021/09/10 00:00:00
@@ -63,11 +65,105 @@ class Scraping:
         self.url: str = "https://search.yahoo.co.jp/search?p=" + self.search_query
         return self.url
 
-    def fetch_google_ads_data(self):
+    def fetch_google_ads_data(self) -> None:
         self.driver.get(self.google_url)
         sleep(3)
         # スクショ保存
         self.save_img_to_local("google")
+        # ショップ広告
+        self.fetch_google_shop_ads_data()
+        # 普通の広告
+        ads = self.driver.els_selector(".cUezCb.luh4tb.O9g5cc.uUPGi")
+        for el in ads:
+            titles = self.fetch_google_ads_title(el)
+            (
+                site_link_titles,
+                site_link_urls,
+                site_link_texts,
+            ) = self.fetch_google_ads_site_link(el)
+            self.google_ads = self.google_ads.append(
+                {
+                    "日付": self.nowdatetime,
+                    "広告タイトル1": titles[0],
+                    "広告タイトル2": titles[1],
+                    "広告タイトル3": titles[2],
+                    "説明文": self.fetch_google_ads_explanatorytext(el),
+                    "サイトリンク1タイトル": site_link_titles[0],
+                    "サイトリンク1URL": site_link_urls[0],
+                    "サイトリンク1説明文": site_link_texts[0],
+                    "サイトリンク2タイトル": site_link_titles[1],
+                    "サイトリンク2URL": site_link_urls[1],
+                    "サイトリンク2説明文": site_link_texts[1],
+                    "サイトリンク3タイトル": site_link_titles[2],
+                    "サイトリンク3URL": site_link_urls[2],
+                    "サイトリンク3説明文": site_link_texts[2],
+                    "サイトリンク4タイトル": site_link_titles[3],
+                    "サイトリンク4URL": site_link_urls[3],
+                    "サイトリンク4説明文": site_link_texts[3],
+                    "ランディングページ": el.find_element_by_css_selector(
+                        ".Krnil"
+                    ).get_attribute("href"),
+                },
+                ignore_index=True,
+            )
+
+    def fetch_google_ads_title(self, el) -> list:
+        # google広告タイトル取得
+        try:
+            title = el.find_element_by_css_selector("div > span").text
+            titles = title.split(" - ")
+            if len(titles) == 1:
+                titles.append("", "")
+            elif len(titles) == 2:
+                titles.append("")
+            return titles
+        except Exception:
+            return "", "", ""
+
+    def fetch_google_ads_explanatorytext(self, el) -> str:
+        # google説明文取得
+        try:
+            return el.find_element_by_css_selector(".MUxGbd.yDYNvb.lyLwlc").text[:180]
+        except Exception:
+            return ""
+
+    def fetch_google_ads_site_link(self, el) -> list:
+        # サイトリンクデータ取得
+        site_link_titles = []
+        site_link_urls = []
+        site_link_texts = []
+        nums = [0, 2, 4, 6]
+        for index in range(4):
+            # タイトル
+            try:
+                site_link_titles.append(
+                    el.find_elements_by_css_selector("h3 > div > a")[index].text
+                )
+            except Exception:
+                site_link_titles.append("")
+            # リンクURL
+            try:
+                site_link_urls.append(
+                    el.find_elements_by_css_selector("h3 > div > a")[
+                        index
+                    ].get_attribute("href")
+                )
+            except Exception:
+                site_link_urls.append("")
+            # 説明文
+            try:
+                site_link_texts.append(
+                    el.find_elements_by_css_selector(".fCBnFe > div")[nums[index]].text
+                    + el.find_elements_by_css_selector(".fCBnFe > div")[
+                        nums[index] + 1
+                    ].text
+                )
+            except Exception:
+                site_link_texts.append("")
+
+        return site_link_titles, site_link_urls, site_link_texts
+
+    def fetch_google_shop_ads_data(self) -> None:
         # ショップ広告
         shop_ads = self.driver.els_selector(".mnr-c.pla-unit")
         for i, ad in enumerate(shop_ads):
@@ -94,138 +190,110 @@ class Scraping:
                 ad.find_element_by_css_selector(f"#vplaurlg{i}").get_attribute("href")
             )
 
-        # 普通の広告
-        ads = self.driver.els_selector(".cUezCb.luh4tb.O9g5cc.uUPGi")
-        if len(ads) > 0:
-            self.google_ads["日付"] = self.nowdatetime
-            self.google_ads["ランディングページ"] = self.driver.el_selector(
-                ".Zu0yb.LWAWHf.OSrXXb.qzEoUe"
-            ).text
-            for i in range(3):
-                # タイトル
-                if i == 0 or i == 1 or i == 2:
-                    try:
-                        self.google_ads["広告タイトル" + str(i + 1)] = (
-                            ads[i].find_element_by_css_selector("div > span").text
-                        )
-                    except Exception:
-                        self.google_ads["広告タイトル" + str(i + 1)] = ""
-                # 説明文
-                if i == 0 or i == 1:
-                    try:
-                        self.google_ads["説明文" + str(i + 1)] = (
-                            ads[i]
-                            .find_element_by_css_selector(".MUxGbd.yDYNvb.lyLwlc")
-                            .text
-                        )
-                    except Exception:
-                        self.google_ads["説明文" + str(i + 1)] = ""
-                if i == 0:
-                    # サイトリンクタイトル
-                    for index in range(4):
-                        try:
-                            self.google_ads["サイトリンク" + str(index + 1) + "タイトル"] = (
-                                ads[i]
-                                .find_elements_by_css_selector("h3 > div > a")[index]
-                                .text
-                            )
-                        except Exception:
-                            self.google_ads["サイトリンク" + str(index + 1) + "タイトル"] = ""
-                    # サイトリンク説明文
-                    nums = [0, 2, 4, 6]
-                    for index in range(4):
-                        try:
-                            self.google_ads["サイトリンク" + str(index + 1) + "説明文"] = (
-                                ads[i]
-                                .find_elements_by_css_selector(".fCBnFe > div")[
-                                    nums[index]
-                                ]
-                                .text
-                                + ads[i]
-                                .find_elements_by_css_selector(".fCBnFe > div")[
-                                    nums[index] + 1
-                                ]
-                                .text
-                            )
-                        except Exception:
-                            self.google_ads["サイトリンク" + str(index + 1) + "説明文"] = ""
-            # 表示順番入れ替え
-            for i in range(len(SORT_LIST)):
-                name = SORT_LIST[i]
-                self.google_sort_ads.append(self.google_ads[name])
-
-    def fetch_yahoo_data(self):
+    def fetch_yahoo_data(self) -> None:
         self.driver.get(self.yahoo_url)
         sleep(3)
         # スクショ保存
         self.save_img_to_local("yahoo")
-
-        # shopping_ads = self.driver.els_selector(".sw-Link.Ad__siteLinks")
-        # if len(shopping_ads) > 0:
-        #     shop_ads = len(shopping_ads[0].find_elements_by_css_selector("li"))
-        #     for i, ad in enumerate(shop_ads):
-
         # 広告情報抽出
         ads = self.driver.els_selector(".sw-Card.Ad.js-Ad")
-        if len(ads) > 0:
-            self.yahoo_ads["日付"] = self.nowdatetime
-            self.yahoo_ads["ランディングページ"] = self.driver.el_selector(
-                ".sw-Card__title > a"
-            ).get_attribute("href")
-            for i in range(3):
-                # タイトル
-                try:
-                    self.yahoo_ads["広告タイトル" + str(i + 1)] = (
-                        ads[i].find_element_by_css_selector("h3").text
-                    )
-                except Exception:
-                    self.yahoo_ads["広告タイトル" + str(i + 1)] = ""
-                # 説明文
-                if i == 0 or i == 1:
-                    try:
-                        self.yahoo_ads["説明文" + str(i + 1)] = (
-                            ads[i]
-                            .find_element_by_css_selector(".sw-Card__summary")
-                            .text
-                        )
-                    except Exception:
-                        self.yahoo_ads["説明文" + str(i + 1)] = ""
-                if i == 0:
-                    # サイトリンクタイトル
-                    for index in range(4):
-                        try:
-                            els = ads[i].find_elements_by_css_selector(
-                                ".sw-Link.Ad__siteLinks > div > ul > li"
-                            )[index]
-                            self.yahoo_ads[
-                                "サイトリンク" + str(index + 1) + "タイトル"
-                            ] = els.find_element_by_css_selector("a").text
-                        except Exception:
-                            self.yahoo_ads["サイトリンク" + str(index + 1) + "タイトル"] = ""
-                    # サイトリンク説明文
-                    for index in range(4):
-                        try:
-                            els = ads[i].find_elements_by_css_selector(
-                                ".sw-Link.Ad__siteLinks > div > ul > li"
-                            )[index]
-                            self.yahoo_ads[
-                                "サイトリンク" + str(index + 1) + "説明文"
-                            ] = els.find_element_by_css_selector("span").text
-                        except Exception:
-                            self.yahoo_ads["サイトリンク" + str(index + 1) + "説明文"] = ""
-            # 表示順番入れ替え
-            for i in range(len(SORT_LIST)):
-                name = SORT_LIST[i]
-                self.yahoo_sort_ads.append(self.yahoo_ads[name])
+        for el in ads:
+            titles = self.fetch_yahoo_ads_title(el)
+            (
+                site_link_titles,
+                site_link_urls,
+                site_link_texts,
+            ) = self.fetch_yahoo_ads_site_link(el)
+            self.yahoo_ads = self.yahoo_ads.append(
+                {
+                    "日付": self.nowdatetime,
+                    "広告タイトル1": titles[0],
+                    "広告タイトル2": titles[1],
+                    "広告タイトル3": titles[2],
+                    "説明文": self.fetch_yahoo_ads_explanatorytext(el),
+                    "サイトリンク1タイトル": site_link_titles[0],
+                    "サイトリンク1URL": site_link_urls[0],
+                    "サイトリンク1説明文": site_link_texts[0],
+                    "サイトリンク2タイトル": site_link_titles[1],
+                    "サイトリンク2URL": site_link_urls[1],
+                    "サイトリンク2説明文": site_link_texts[1],
+                    "サイトリンク3タイトル": site_link_titles[2],
+                    "サイトリンク3URL": site_link_urls[2],
+                    "サイトリンク3説明文": site_link_texts[2],
+                    "サイトリンク4タイトル": site_link_titles[3],
+                    "サイトリンク4URL": site_link_urls[3],
+                    "サイトリンク4説明文": site_link_texts[3],
+                    "ランディングページ": el.find_element_by_css_selector(
+                        ".sw-Card__title > a"
+                    ).get_attribute("href"),
+                },
+                ignore_index=True,
+            )
 
-    def save_img_to_local(self, search_kind: str):
+    def fetch_yahoo_ads_title(self, el) -> list:
+        # yahoo広告タイトル取得
+        try:
+            title = el.find_element_by_css_selector("h3").text
+            titles = title.split(" - ")
+            if len(titles) == 1:
+                titles.append("", "")
+            elif len(titles) == 2:
+                titles.append("")
+            return titles
+        except Exception:
+            return "", "", ""
+
+    def fetch_yahoo_ads_explanatorytext(self, el) -> str:
+        # google説明文取得
+        try:
+            return el.find_element_by_css_selector(".sw-Card__summary").text[:180]
+        except Exception:
+            return ""
+
+    def fetch_yahoo_ads_site_link(self, el) -> list:
+        # サイトリンクデータ取得
+        site_link_titles = []
+        site_link_urls = []
+        site_link_texts = []
+        for index in range(4):
+            # タイトル
+            try:
+                site_link_titles.append(
+                    el.find_elements_by_css_selector(
+                        ".sw-Link.Ad__siteLinks > div > ul > li > a"
+                    )[index].text
+                )
+            except Exception:
+                site_link_titles.append("")
+            # リンクURL
+            try:
+                site_link_urls.append(
+                    el.find_elements_by_css_selector(
+                        ".sw-Link.Ad__siteLinks > div > ul > li > a"
+                    )[index].get_attribute("href")
+                )
+            except Exception:
+                site_link_urls.append("")
+            # 説明文
+            try:
+                site_link_texts.append(
+                    el.find_elements_by_css_selector(
+                        ".sw-Link.Ad__siteLinks > div > ul > li > span"
+                    )[index].text
+                )
+            except Exception:
+                site_link_texts.append("")
+
+        return site_link_titles, site_link_urls, site_link_texts
+
+    def save_img_to_local(self, search_kind: str) -> None:
         # screenshotフォルダがない場合は作る
         dir = Path(SS_FOLDER_PATH)
         dir.mkdir(parents=True, exist_ok=True)
         # スクショして一時的にローカルフォルダに保存
         self.driver.save_screenshot(SS_FOLDER_PATH, f"{self.nowdate}_{search_kind}.jpg")
 
-    def save_img_to_googledrive(self):
+    def save_img_to_googledrive(self) -> None:
         # googleドライブに保存
         self.g_drive.save_file(
             self.google_foler_id, SS_FOLDER_PATH, f"{self.nowdate}_google.jpg"
@@ -234,7 +302,7 @@ class Scraping:
             self.yahoo_foler_id, SS_FOLDER_PATH, f"{self.nowdate}_yahoo.jpg"
         )
 
-    def write_spread_sheet(self):
+    def write_spread_sheet(self) -> None:
         """
         検索ワード名のワークシートがなければ作成
         検索ワード初回のみ作成
@@ -248,30 +316,21 @@ class Scraping:
         """
         if len(self.g_drive.workbook.worksheets()) < 3:
             # google広告ヘッダー作成
-            self.g_drive.append_row(SORT_LIST)
+            self.g_drive.append_row(COLUMN_LIST)
             # 1つ目のシートはすでにあるのでリネーム
             self.g_drive.rename_sheet("google広告")
             # シート作成
             self.g_drive.add_worksheet("googleショッピング広告")
             # googleショピング広告ヘッダー作成
-            self.g_drive.append_row(GOOGLE_SHOPPING_SORT_LIST)
+            self.g_drive.append_row(GOOGLE_SHOPPING_COLUMN_LIST)
             # シート作成
             self.g_drive.add_worksheet("yahoo広告")
             # yahoo広告ヘッダー作成
-            self.g_drive.append_row(SORT_LIST)
+            self.g_drive.append_row(COLUMN_LIST)
         # google広告書き込み
         self.g_drive.change_sheet(0)
-        for i, s in enumerate(self.google_sort_ads):
-            # １個目は日時なのでスルー
-            if i == 0:
-                continue
-            """
-            抽出した項目が空白でない時点で書き込み
-            逆に抽出した項目が全部空白だったら書き込まない
-            """
-            if s != "":
-                self.g_drive.append_row(self.google_sort_ads)
-                break
+        for i in range(len(self.google_ads)):
+            self.g_drive.append_row(self.google_ads.iloc[i].to_list())
         """
         googleショッピング広告書き込み
         2シート目へ移動
@@ -284,18 +343,14 @@ class Scraping:
         3シート目へ移動
         """
         self.g_drive.change_sheet(2)
-        for i, s in enumerate(self.yahoo_sort_ads):
-            if i == 0:
-                continue
-            if s != "":
-                self.g_drive.append_row(self.yahoo_sort_ads)
-                break
+        for i in range(len(self.yahoo_ads)):
+            self.g_drive.append_row(self.yahoo_ads.iloc[i].to_list())
         """
         URL取得
         """
         self.spreadsheet_url = self.g_drive.fetch_wb_url()
 
-    def make_folder(self):
+    def make_folder(self) -> None:
         """
         Googleドライブの中でフォルダを作成
         フォルダ名は検索ワード
@@ -319,7 +374,7 @@ class Scraping:
             self.search_foler_id, "yahoo"
         )[0]
 
-    def send_chatwork(self):
+    def send_chatwork(self) -> None:
         send_img(
             message=self.spreadsheet_url,
             img_folder=SS_FOLDER_PATH,
@@ -331,11 +386,9 @@ class Scraping:
         )
 
 
-def scraping(search_word: str):
+def scraping(search_word: str) -> None:
     # スクレイピング用のクラス設定
     my_scraping = Scraping(search_word)
-    # my_scraping = Scraping("冷蔵庫　セール")
-    # my_scraping = Scraping("家電量販店　東京")
     # googleのデータ抽出
     my_scraping.fetch_google_ads_data()
     # yahooのデータ抽出

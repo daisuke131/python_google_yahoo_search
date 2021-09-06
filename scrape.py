@@ -113,7 +113,7 @@ class Scraping:
             title = el.find_element_by_css_selector("div > span").text
             titles = title.split(" - ")
             if len(titles) == 1:
-                titles.append("", "")
+                titles.extend(["", ""])
             elif len(titles) == 2:
                 titles.append("")
             return titles
@@ -236,7 +236,7 @@ class Scraping:
             title = el.find_element_by_css_selector("h3").text
             titles = title.split(" - ")
             if len(titles) == 1:
-                titles.append("", "")
+                titles.extend(["", ""])
             elif len(titles) == 2:
                 titles.append("")
             return titles

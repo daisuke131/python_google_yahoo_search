@@ -26,7 +26,7 @@ class Scrape:
                 is_scrape = True
         return is_scrape
 
-    def start_scraping(self):
+    def start_scraping(self) -> None:
         df = self.g_drive.set_df()
         # スプレッドシートから検索ワード抽出
         for i, items in df.iterrows():
@@ -36,16 +36,16 @@ class Scrape:
         print(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')}スクレイピング完了")
 
 
-def start():
+def start() -> None:
     scrape = Scrape()
     if scrape.is_scrape():
         scrape.start_scraping()
 
 
-schedule.every().hours.at(":00").do(start)
+schedule.every().hours.at(":34").do(start)
 
 
-def main():
+def main() -> None:
     # jobの実行監視、指定時間になったらjob関数を実行
     while True:
         schedule.run_pending()

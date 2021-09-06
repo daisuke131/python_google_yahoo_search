@@ -46,7 +46,7 @@ schedule.every().hours.at(":00").do(start)
 
 
 def main() -> None:
-    # jobの実行監視、指定時間になったらjob関数を実行
+    # start関数の実行監視、指定時間になったらstart関数を実行
     while True:
         schedule.run_pending()
         sleep(30)

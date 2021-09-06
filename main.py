@@ -42,7 +42,7 @@ def start() -> None:
         scrape.start_scraping()
 
 
-schedule.every().hours.at(":34").do(start)
+schedule.every().hours.at(":00").do(start)
 
 
 def main() -> None:

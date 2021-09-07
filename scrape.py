@@ -37,6 +37,7 @@ class Scraping:
     def __init__(self, search_word: str) -> None:
         self.g_drive = Gspread()
         self.driver = Driver()
+        self.search_word = search_word
         self.search_query: str = self.fetch_query(search_word)
         self.google_url: str = self.fetch_google_url()
         self.yahoo_url: str = self.fetch_yahoo_url()
@@ -73,7 +74,9 @@ class Scraping:
         # ショップ広告
         self.fetch_google_shop_ads_data()
         # 普通の広告
-        ads = self.driver.els_selector(".cUezCb.luh4tb.O9g5cc.uUPGi")
+        # PC用
+        # ads = self.driver.els_selector(".cUezCb.luh4tb.O9g5cc.uUPGi")
+        ads = self.driver.els_selector(".uEierd")  # iphone用
         for el in ads:
             titles = self.fetch_google_ads_title(el)
             (
@@ -100,8 +103,13 @@ class Scraping:
                     "サイトリンク4タイトル": site_link_titles[3],
                     "サイトリンク4URL": site_link_urls[3],
                     "サイトリンク4説明文": site_link_texts[3],
+                    # PC用
+                    # "ランディングページ": el.find_element_by_css_selector(
+                    #     ".Krnil"
+                    # ).get_attribute("href"),
+                    # iphone用
                     "ランディングページ": el.find_element_by_css_selector(
-                        ".Krnil"
+                        "div.d5oMvf > a"
                     ).get_attribute("href"),
                 },
                 ignore_index=True,
@@ -110,7 +118,12 @@ class Scraping:
     def fetch_google_ads_title(self, el) -> list:
         # google広告タイトル取得
         try:
-            title = el.find_element_by_css_selector("div > span").text
+            # PC用
+            # title = el.find_element_by_css_selector("div > span").text
+            # iphone用
+            title = el.find_element_by_css_selector(
+                "a > div.PpBGzd.YcUVQe.cfxYMc.MUxGbd.v0nnCb.lEBKkf > div > span"
+            ).text
             titles = title.split(" - ")
             if len(titles) == 1:
                 titles.extend(["", ""])
@@ -123,7 +136,10 @@ class Scraping:
     def fetch_google_ads_explanatorytext(self, el) -> str:
         # google説明文取得
         try:
-            return el.find_element_by_css_selector(".MUxGbd.yDYNvb.lyLwlc").text[:180]
+            # PC用
+            # return el.find_element_by_css_selector(".MUxGbd.yDYNvb.lyLwlc").text[:180]
+            # iphone用
+            return el.find_element_by_css_selector(".MUxGbd.yDYNvb.lEBKkf").text[:180]
         except Exception:
             return ""
 
@@ -132,19 +148,29 @@ class Scraping:
         site_link_titles = []
         site_link_urls = []
         site_link_texts = []
-        nums = [0, 2, 4, 6]
+        # nums = [0, 2, 4, 6]
         for index in range(4):
             # タイトル
             try:
                 site_link_titles.append(
-                    el.find_elements_by_css_selector("h3 > div > a")[index].text
+                    # PC用
+                    # el.find_elements_by_css_selector("h3 > div > a")[index].text
+                    # iphone用
+                    el.find_elements_by_css_selector(".MUxGbd.v0nnCb.lyLwlc > a")[
+                        index
+                    ].text
                 )
             except Exception:
                 site_link_titles.append("")
             # リンクURL
             try:
                 site_link_urls.append(
-                    el.find_elements_by_css_selector("h3 > div > a")[
+                    # PC用
+                    # el.find_elements_by_css_selector("h3 > div > a")[
+                    #     index
+                    # ].get_attribute("href")
+                    # iphone用
+                    el.find_elements_by_css_selector(".MUxGbd.v0nnCb.lyLwlc > a")[
                         index
                     ].get_attribute("href")
                 )
@@ -153,10 +179,17 @@ class Scraping:
             # 説明文
             try:
                 site_link_texts.append(
-                    el.find_elements_by_css_selector(".fCBnFe > div")[nums[index]].text
-                    + el.find_elements_by_css_selector(".fCBnFe > div")[
-                        nums[index] + 1
-                    ].text
+                    # PC用
+                    # el.find_elements_by_css_selector(".fCBnFe > div")
+                    #     [nums[index]]
+                    # .text
+                    # + el.find_elements_by_css_selector(".fCBnFe > div")[
+                    #     nums[index] + 1
+                    # ].text
+                    # iphone用
+                    el.find_elements_by_css_selector(
+                        ".MUxGbd.yDYNvb.lyLwlc.aLF0Z.OSrXXb"
+                    )[index].text
                 )
             except Exception:
                 site_link_texts.append("")
@@ -165,21 +198,33 @@ class Scraping:
 
     def fetch_google_shop_ads_data(self) -> None:
         # ショップ広告
-        shop_ads = self.driver.els_selector(".mnr-c.pla-unit")
+        # PC用
+        # shop_ads = self.driver.els_selector(".mnr-c.pla-unit")
+        # iphone用
+        shop_ads = self.driver.els_selector(".pla-unit-container.VoEfsd")
         for i, ad in enumerate(shop_ads):
             shop_ads_list = []
             # 日時
             shop_ads_list.append(self.nowdatetime)
             #  タイトル
             try:
+                # 両用
                 shop_ads_list.append(ad.find_element_by_css_selector(".pymv4e").text)
             except Exception:
                 break
             # 金額
-            shop_ads_list.append(ad.find_element_by_css_selector(".e10twf.T4OwTb").text)
+            # PC用
+            # shop_ads_list.append(ad.find_element_by_css_selector(".e10twf.T4OwTb").text)
+            # iphone用
+            shop_ads_list.append(ad.find_element_by_css_selector(".dOp6Sc").text)
+
             # ショップ名
-            shop_ads_list.append(ad.find_element_by_css_selector(".LbUacb").text)
+            # PC用
+            # shop_ads_list.append(ad.find_element_by_css_selector(".LbUacb").text)
+            # iphone用
+            shop_ads_list.append(ad.find_element_by_css_selector(".hBvPxd.zPEcBd").text)
             # 送料無料
+            # 両用
             try:
                 shop_ads_list.append(ad.find_element_by_css_selector(".cYBBsb").text)
             except Exception:
@@ -187,7 +232,12 @@ class Scraping:
             self.google_store_ads.append(shop_ads_list)
             # URL
             shop_ads_list.append(
-                ad.find_element_by_css_selector(f"#vplaurlg{i}").get_attribute("href")
+                # PC用
+                # ad.find_element_by_css_selector(f"#vplaurlg{i}").get_attribute("href")
+                # iphone用
+                ad.find_element_by_css_selector(".pla-unit.eUPzHb").get_attribute(
+                    "href"
+                )
             )
 
     def fetch_yahoo_data(self) -> None:
@@ -196,7 +246,10 @@ class Scraping:
         # スクショ保存
         self.save_img_to_local("yahoo")
         # 広告情報抽出
-        ads = self.driver.els_selector(".sw-Card.Ad.js-Ad")
+        # PC用
+        # ads = self.driver.els_selector(".sw-Card.Ad.js-Ad")
+        # iphone用
+        ads = self.driver.els_selector(".sw-Card.Ad")
         for el in ads:
             titles = self.fetch_yahoo_ads_title(el)
             (
@@ -223,8 +276,13 @@ class Scraping:
                     "サイトリンク4タイトル": site_link_titles[3],
                     "サイトリンク4URL": site_link_urls[3],
                     "サイトリンク4説明文": site_link_texts[3],
+                    # PC用
+                    # "ランディングページ": el.find_element_by_css_selector(
+                    #     ".sw-Card__title > a"
+                    # ).get_attribute("href"),
+                    # iphone用
                     "ランディングページ": el.find_element_by_css_selector(
-                        ".sw-Card__title > a"
+                        "div > a"
                     ).get_attribute("href"),
                 },
                 ignore_index=True,
@@ -244,8 +302,9 @@ class Scraping:
             return "", "", ""
 
     def fetch_yahoo_ads_explanatorytext(self, el) -> str:
-        # google説明文取得
+        # yahoo説明文取得
         try:
+            # 両用
             return el.find_element_by_css_selector(".sw-Card__summary").text[:180]
         except Exception:
             return ""
@@ -259,27 +318,40 @@ class Scraping:
             # タイトル
             try:
                 site_link_titles.append(
-                    el.find_elements_by_css_selector(
-                        ".sw-Link.Ad__siteLinks > div > ul > li > a"
-                    )[index].text
+                    # PC用
+                    # el.find_elements_by_css_selector(
+                    #     ".sw-Link.Ad__siteLinks > div > ul > li > a"
+                    # )[index].text
+                    # iphone用
+                    el.find_elements_by_css_selector("div > ul > li > a")[index].text
                 )
             except Exception:
                 site_link_titles.append("")
             # リンクURL
             try:
                 site_link_urls.append(
-                    el.find_elements_by_css_selector(
-                        ".sw-Link.Ad__siteLinks > div > ul > li > a"
-                    )[index].get_attribute("href")
+                    # PC用
+                    # el.find_elements_by_css_selector(
+                    #     ".sw-Link.Ad__siteLinks > div > ul > li > a"
+                    # )[index].get_attribute("href")
+                    # iphone用
+                    el.find_elements_by_css_selector("div > ul > li > a")[
+                        index
+                    ].get_attribute("href")
                 )
             except Exception:
                 site_link_urls.append("")
             # 説明文
             try:
                 site_link_texts.append(
-                    el.find_elements_by_css_selector(
-                        ".sw-Link.Ad__siteLinks > div > ul > li > span"
-                    )[index].text
+                    # PC用
+                    # el.find_elements_by_css_selector(
+                    #     ".sw-Link.Ad__siteLinks > div > ul > li > span"
+                    # )[index].text
+                    # iphone用
+                    el.find_elements_by_css_selector(".sw-Link > div > ul > li > span")[
+                        index
+                    ].text
                 )
             except Exception:
                 site_link_texts.append("")
@@ -376,7 +448,7 @@ class Scraping:
 
     def send_chatwork(self) -> None:
         send_img(
-            message=self.spreadsheet_url,
+            message=f"検索ワード：{self.search_word}\n" + self.spreadsheet_url,
             img_folder=SS_FOLDER_PATH,
             imag_name=f"{self.nowdate}_google.jpg",
         )

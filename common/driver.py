@@ -5,8 +5,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 from webdriver_manager.utils import ChromeType
 
-from common.util import fetch_user_agent
-
 BROWSER_NAME: str = "chrome"
 
 
@@ -15,7 +13,12 @@ class Driver:
         self.driver = self.driver_setting(headless_flg)
 
     def driver_setting(self, headless_flg: bool):
-        user_agent_random = fetch_user_agent()
+        # UA情報
+        user_agent = (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 11_2_5 like Mac OS X) "
+            + "AppleWebKit/604.5.2 (KHTML, like Gecko) Version/11.0 "
+            + "Mobile/15D5046b Safari/604.1"
+        )
         # ドライバーの読み込み
         if "firefox" in BROWSER_NAME:
             options = webdriver.FirefoxOptions()
@@ -26,7 +29,7 @@ class Driver:
         if os.name == "posix" or headless_flg:  # Linux　➙　本番環境のためHeadless
             options.add_argument("--headless")
 
-        options.add_argument("--user-agent=" + user_agent_random)
+        options.add_argument("--user-agent=" + user_agent)
         options.add_argument("log-level=3")
         options.add_argument("--ignore-certificate-errors")
         options.add_argument("--ignore-ssl-errors")
